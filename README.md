@@ -1,12 +1,12 @@
-MLS Workflow Tips
+# MLS Workflow Tips
 
-First, ssh into MLP head node (from Dice):
+**First, ssh into MLP head node (from Dice):**
 	ssh mlp1
 
 You now have access to a filespace on the MLP node that is unique to your UID.
 
 Set up the environment:
- 	conda create --name env
+	conda create --name env
 Activate the environment:
 	conda activate env
 Install CUDA:

@@ -1,6 +1,7 @@
 # MLS Workflow Tips
 
 **First, ssh into MLP head node (from Dice):**
+
 	ssh mlp1
 
 You now have access to a filespace on the MLP node that is unique to your UID.

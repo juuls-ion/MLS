@@ -56,6 +56,8 @@ When you write PyTorch code that uses GPUs (or other accelerators), each tensor 
 - Scalability
     - Scalability here refers to how easily a program can handle larger problems, more data, or additional hardware resources. The CPU can queue work on *multiple* GPUs without forcing a global wait. Each GPU then runs its assigned kernels in parallel with the others.
 
+![ScreenShot](/images/asynchronous.jpg)
+
 ### Main overall benefits of PyTorch:
 
 - Python frontend is simple and flexible, with full lifecycle support.

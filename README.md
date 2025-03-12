@@ -32,7 +32,7 @@ Wait until you see a terminal message like
 
 You are now connected to a node with access to a GPU. This node lets you run interactive jobs, which are short jobs that let you test GPU code (e.g. for debugging).
 
-### To run a job
+## To run a job
 
 First, write a python script that does whatever you want to do.
 If you want to save an output, ideally do it in the script using cupy.savetxt(), etc.
@@ -48,3 +48,39 @@ Then, run:
 
 
 and your output will be saved to the directory you called sbatch from.
+
+## Useful Commands
+
+You can specify GPUs:
+
+	srun --gres=gpu:titan_x:1 --pty bash
+	sbatch --gres=gpu:titan_x:1 test.sh
+ 
+to use Titan X GPUs. We are allowed to request a maximum of 8 GTX 1060 GPUs, 4 Titan X GPUs, 1 Titan X Pascal GPU, or 2
+A6000 GPUs at a time.
+
+**Check all available GPU types:**
+	
+ 	scontrol show node | grep gpu
+
+**Check current SLURM job status:**
+
+	squeue
+
+ **Cancel a job:** 
+ 
+ 	scancel <job_id>
+
+  For more info, check out
+  https://computing.help.inf.ed.ac.uk/teaching-cluster
+
+  ## Important Notes
+
+Only install your environment and write your code on the head node. Actions such as Git operations and
+similar tasks should also be performed on the head node, as they will not work on the compute nodes.
+
+Only run your code on the compute nodes using srun or sbatch, as the head node has limited computing
+resources and does not have GPUs. Running torch.cuda.is_available() on the head node will return
+False.
+
+Computing Support Team: https://computing.help.inf.ed.ac.uk/

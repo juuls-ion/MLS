@@ -84,3 +84,10 @@ resources and does not have GPUs. Running torch.cuda.is_available() on the head 
 False.
 
 Computing Support Team: https://computing.help.inf.ed.ac.uk/
+
+## PyTorch Demo
+
+They gave us a demo workthrough in rescources/1-pytorch-demo. Its worth a look.
+
+![ScreenShot](/images/pytorch_demo.jpg)
+

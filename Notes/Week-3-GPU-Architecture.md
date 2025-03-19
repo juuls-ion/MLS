@@ -94,11 +94,9 @@ Dim and Idx can be 1, 2, or 3 dimensions, but we typically use 1 dimension for 1
 
 In 1D array:
 
-<aside>
 
-idx = (blockIdx * blockDim) + threadIdx 
+    idx = (blockIdx * blockDim) + threadIdx 
 
-</aside>
 
 gives a unique ID for each thread being used in the grid!
 

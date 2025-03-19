@@ -34,7 +34,7 @@ Vector search can be formally defined:
     - Distance functions include Euclidean, dot-product, cosine.
     - These can be normalised also (L2). When normalised, the cosine and dot-product functions are the same.
 
-![Screenshot 2025-03-18 at 6.45.48 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-18_at_6.45.48_pm.png)
+![ScreenShot](/images/4-1.png)
 
 ### kNN Algorithm
 
@@ -63,7 +63,7 @@ Note the following definitions:
     - The fewer comparisons needed (i.e. the higher this value is), the faster the method.
 - **Accuracy:** How closely the approximate results match the exact nearest neighbours. There are a few of metrics to measure this.
     
-    ![Screenshot 2025-03-18 at 6.58.54 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-18_at_6.58.54_pm.png)
+    ![ScreenShot](/images/4-2.png)
     
     - **Recall:** Of all true nearest neighbours, how many did we successfully identify?
         - High recall implies you’re returning most of the correct neighbors.
@@ -80,7 +80,7 @@ The more pre-computations performed, the superior the performance. We use these 
 - Importantly, the index is independent of the query - meaning that once it has been built, it can be used (offline) by many different queries that reference any columns/features it contains.
 - With vector data, the predicate would be “return all vectors close to the query vector q” etc. A **vector index** is built using a specialised data structure (see below). The **index function** then returns suitable vectors, without having to compute distances between every single vector and the query.
 
-![Screenshot 2025-03-18 at 7.17.08 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-18_at_7.17.08_pm.png)
+![ScreenShot](/images/4-3.png)
 
 ### ANN Index: Inverted File Index (IVF)
 
@@ -92,7 +92,7 @@ The main idea behind IVF is as follows:
 
 - Partition your set of vectors, *D*, into a **Voronoi** **Diagram** (a set of cells).
 
-![Screenshot 2025-03-18 at 7.21.57 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-18_at_7.21.57_pm.png)
+![ScreenShot](/images/4-4.png)
 
 - You choose some **seed vectors** (here *p1*, *p2*, *p3*) and split the vector space so that, for any given vector in the vector space, it belongs to the cell of the seed vector it is closest to.
     - For any given seed vector, its nearest neighbour will always be within its cell.
@@ -113,7 +113,7 @@ Observations:
 
 K-means clustering is the optimal technique to construct the Voronoi diagram. This is just a proven result.
 
-![Screenshot 2025-03-18 at 10.31.10 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-18_at_10.31.10_pm.png)
+![ScreenShot](/images/4-5.png)
 
 K-means clustering (above) is a technique to generate a set of clusters out of a set of vectors.
 
@@ -166,7 +166,7 @@ We represent the entire dataset as a graph, with nearer vectors more likely to b
 
 Navigability is a relevant property of some graphs:
 
-![Screenshot 2025-03-18 at 11.13.14 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-18_at_11.13.14_pm.png)
+![ScreenShot](/images/4-6.png)
 
 This is important, because there is a special type of navigable graph called the **Delaunay Graph.**
 
@@ -176,7 +176,7 @@ This is important, because there is a special type of navigable graph called the
     - This is efficient, as for any circle drawn between two vectors connected by an edge, there will be no other vectors in the circle (i.e. edges are sparse).
 - Cheap to construct as complexity: total # edges examined (i.e., # steps * average vertex degree).
 
-![Screenshot 2025-03-18 at 11.18.43 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-18_at_11.18.43_pm.png)
+![ScreenShot](/images/4-7.png)
 
 The Delaunay Graph (DG) cannot be used for direct kNN queries, as it becomes exponentially more complex to construct in higher dimensions. Furthermore, at high dimensions it approximates a fully connected graph (so kNN over this graph essentially reduces to brute force).
 
@@ -191,7 +191,7 @@ The Delaunay Graph is a type of **Small World Graph (SWG)**. These are networks 
 
 - The classic analogy is social networks: the idea that anyone is only “six degrees of seperation” from anyone else on Earth, even though most people only know individuals in their social circles (local graph clusters).
 
-![Screenshot 2025-03-19 at 2.46.35 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-19_at_2.46.35_pm.png)
+![ScreenShot](/images/4-8.png)
 
 We want to try and build a sparse small world graph to approximate the Delaunay Graph (which is also made of many small, local connections).
 
@@ -199,7 +199,7 @@ We want to try and build a sparse small world graph to approximate the Delaunay 
 - The solution: Random rewiring to add a few super-long edges. This has been shown to massively decrease the number of “hops”, especially as the distance to the query increases.
     - The social network analogy is: imagine you live in London. It would take ages to connect yourself to someone living in Glasgow by snaking your way up through the country using short connections. If however you know someone in Edinburgh, it becomes way quicker.
 
-![Screenshot 2025-03-19 at 2.49.49 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-19_at_2.49.49_pm.png)
+![ScreenShot](/images/4-9.png)
 
 Remember however, one of our key constraints is **navigability**. How do we ensure these SWGs are navigable (to make Navigable Small World Graphs - NSWGs).
 
@@ -211,7 +211,7 @@ Making these NSWGs is complex and can only be approximately done using Heuristic
 - Add another random vector, and connect it to its k-nearest neighbours that are already in the graph.
     - The idea is that the early vectors you add will be randomly spread, and provide the long-range connections. Later nodes will add all the short connections (as the more nodes already in the graph, the closer each k-nearest neighbour will be).
 
-![Screenshot 2025-03-19 at 2.58.01 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-19_at_2.58.01_pm.png)
+![ScreenShot](/images/4-10.png)
 
 The resulting graph is (approximately) navigable and small-world. These “generated” graphs tend to be less efficient to build and query that “natural” NSWGs (like the Delaunay Graph).
 
@@ -236,4 +236,4 @@ To query the graph, we start at the entry node (usually arbitrarily chosen) on t
 - We use this node as the entry node for the next layer, again performing greedy search.
 - Repeat until you hit the bottom layer (original NSWG). The nearest neighbours found at this layer are the true nearest neighbours!
 
-![Screenshot 2025-03-19 at 3.15.29 pm.png](Week%204%20Vector%20Search%20+%20Vector%20Databases%201ba65b33432380508fb1e3d3554aa2ea/Screenshot_2025-03-19_at_3.15.29_pm.png)
+![ScreenShot](/images/4-11.png)

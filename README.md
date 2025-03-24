@@ -6,6 +6,11 @@
 
 You now have access to a filespace on the MLP node that is unique to your UID.
 
+Set up conda on MLS head node
+
+	opt/conda/bin/conda init bash
+ 	source .bashrc
+
 Set up the environment:
 
 	conda create --name env

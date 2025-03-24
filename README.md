@@ -36,6 +36,9 @@ Wait until you see a terminal message like
 > “... has been allocated resources”.
 
 You are now connected to a node with access to a GPU. This node lets you run interactive jobs, which are short jobs that let you test GPU code (e.g. for debugging).
+You can now run GPU-friendly python files for example, using
+
+	python3 ~/path/to/file
 
 ## To run a job
 
@@ -45,14 +48,14 @@ If you want to save an output, ideally do it in the script using cupy.savetxt(),
 Then, write a shell script that looks this:
 
 	#!/bin/bash
-	~Path to python, in conda envs, to be improved upon~ ~path to python script~
+	python3 ~/path/to/file
 
 Then, run:
 
 	sbatch --gres=gpu:1 script.sh
 
 
-and your output will be saved to the directory you called sbatch from.
+and the output (from the python file) will be saved to the directory you called sbatch from.
 
 ## Useful Commands
 

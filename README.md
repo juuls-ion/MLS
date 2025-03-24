@@ -25,7 +25,7 @@ Install CUDA:
  
 Install CuPy:
 
-	conda install cupy
+ 	conda install -c conda-forge cupy
 
 **To run an interactive job:**
 Connect to node:

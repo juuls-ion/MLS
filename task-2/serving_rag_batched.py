@@ -4,9 +4,12 @@ from transformers import AutoTokenizer, AutoModel, pipeline, AutoModelForCausalL
 from fastapi import FastAPI
 import uvicorn
 from pydantic import BaseModel
+import time
 import re
 
-device = torch.device("cuda")
+from typing import List
+
+device = "cpu"
 
 # -----Preamble-----
 documents = [
@@ -21,7 +24,6 @@ documents = [
 EMBED_MODEL_NAME = "intfloat/multilingual-e5-large-instruct"
 embed_tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_NAME)
 embed_model = AutoModel.from_pretrained(EMBED_MODEL_NAME)
-embed_model.to(device)
 
 
 def batched_get_embedding(texts: list) -> np.ndarray:
@@ -42,7 +44,7 @@ def get_embedding(text: str) -> np.ndarray:
 
 
 # Precompute document embeddings
-# doc_embeddings = np.vstack([get_embedding(doc) for doc in documents])
+doc_embeddings = np.vstack([get_embedding(doc) for doc in documents])
 
 
 # Find top-k embeddings
@@ -62,12 +64,6 @@ MODEL_NAME = "facebook/opt-125m"
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
-from typing import List
-import time
-
-
-device = "cpu"
-
 
 def generate_text_batch(
     prompts: List[str],
@@ -85,6 +81,8 @@ def generate_text_batch(
     inputs = tokenizer(
         prompts,
         return_tensors="pt",
+        padding=True,
+        truncation=True,
         # Optional: set a max_length for tokenization if prompts can be very long
         # max_length=512
     )
@@ -247,5 +245,4 @@ if __name__ == "__main__":
         "Mice are",
         "Humming birds are",
     ]
-    # print(batched_rag_pipeline(prompt, 2))
-    print(generate_text_batch(prompt, a, b, c, d, e, f))
+    print(batched_rag_pipeline(prompt, 2))

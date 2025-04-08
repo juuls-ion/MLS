@@ -239,12 +239,7 @@ f = 1.2
 if __name__ == "__main__":
     # uvicorn.run(app, host="0.0.0.0", port=8000)
     # print(rag_pipeline("Cats are", 2))
-    prompt = [
-        "What's the meaning of life?",
-        "Dogs are",
-        "Mice are",
-        "Humming birds are",
-    ]
+    prompt = ["bljshjdhls" for i in range(20)]
     now = time.time()
     print(batched_rag_pipeline(prompt, 2))
     print("Time taken: ", time.time() - now)

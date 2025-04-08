@@ -11,6 +11,8 @@ import uuid
 from typing import Dict, List
 import time
 
+device = "cpu"
+
 #-----Preamble-----
 documents = [
     "Cats are small furry carnivores that are often kept as pets.",
@@ -26,23 +28,30 @@ embed_tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_NAME)
 embed_model = AutoModel.from_pretrained(EMBED_MODEL_NAME)
 
 # Generate embeddings using embedding model
-def get_embedding(text: str) -> np.ndarray:
+def batched_get_embedding(texts: list) -> np.ndarray:
     """Compute a simple average-pool embedding."""
-    inputs = embed_tokenizer(text, return_tensors="pt", truncation=True)
+    inputs = embed_tokenizer(texts, return_tensors="pt", truncation=True, padding=True)
     with torch.no_grad():
         outputs = embed_model(**inputs)
     return outputs.last_hidden_state.mean(dim=1).cpu().numpy()
 
 # Precompute document embeddings
-doc_embeddings = np.vstack([get_embedding(doc) for doc in documents])
+doc_embeddings = np.vstack([batched_get_embedding([doc]) for doc in documents])
 
 # Find top-k embeddings
 # We can use our own method from task 1
-def retrieve_top_k(query_emb: np.ndarray, k: int = 2) -> list:
-    """Retrieve top-k docs via dot-product similarity."""
-    sims = doc_embeddings @ query_emb.T
-    top_k_indices = np.argsort(sims.ravel())[::-1][:k]
-    return [documents[i] for i in top_k_indices]
+def batched_retrieve_top_k(query_embeddings: np.ndarray, k: int = 2) -> List[List[str]]:
+    doc_embeddings_tensor = torch.from_numpy(doc_embeddings)
+    query_embeddings_tensor = torch.from_numpy(query_embeddings)
+
+    sims = doc_embeddings_tensor.unsqueeze(0) @ query_embeddings_tensor.T
+    _, indices = torch.topk(sims, k, dim=1)
+    indices = indices.cpu().numpy()
+    indices = indices.squeeze()
+    documents_np = np.array(documents)
+    selected_documents = documents_np[indices]
+    print(selected_documents.shape)
+    return selected_documents.T
 
 
 #-----LLM-----
@@ -53,32 +62,55 @@ MODEL_NAME = "facebook/opt-125m"
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
-def generate_text(prompt,
-                  max_length,
-                  do_sample,
-                  top_k,
-                  top_p,
-                  temperature,
-                  repetition_penalty):
-    inputs = tokenizer(prompt, return_tensors="pt")
+def generate_text_batch(
+    prompts: List[str],
+    max_new_tokens: int,
+    do_sample: bool,
+    top_k: int,
+    top_p: float,
+    temperature: float,
+    repetition_penalty: float,
+) -> List[str]:
+    """
+    Generates text responses for a batch of prompts.
+    """
+    start_time = time.time()
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        # Optional: set a max_length for tokenization if prompts can be very long
+        # max_length=512
+    )
+    input_length = inputs["input_ids"].shape[1]
 
-    # When using GPU, move inputs to CUDA:
-    #inputs = {k: v.to("cuda") for k, v in inputs.items()}
+    inputs = {k: v.to(device) for k, v in inputs.items()}
 
-    # Generate output using LLM
     with torch.no_grad():
         output_ids = model.generate(
-            inputs["input_ids"],
-            max_length=max_length,
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+            max_new_tokens=max_new_tokens,
             do_sample=do_sample,
             top_k=top_k,
             top_p=top_p,
             temperature=temperature,
-            repetition_penalty=repetition_penalty
+            repetition_penalty=repetition_penalty,
+            pad_token_id=tokenizer.pad_token_id,
         )
 
-    generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-    return generated_text
+    generated_ids = output_ids[:, input_length:]
+    generated_texts = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+
+    end_time = time.time()
+    print(
+        f"Batch generation took {end_time - start_time:.2f} seconds for {len(prompts)} prompts."
+    )
+
+    return generated_texts
+
+
 
 
 #-----Output Formatting-----
@@ -87,29 +119,16 @@ def generate_text(prompt,
 #-----RAG Stuff-----
 app = FastAPI()
 
-def rag_pipeline(query: str, k: int = 2) -> str:
-    # Step 1: Input embedding
-    query_emb = get_embedding(query)
-    
-    # Step 2: Retrieval
-    retrieved_docs = retrieve_top_k(query_emb, k)
-    
-    # Construct the prompt from query + retrieved docs
-    context = "\n".join(retrieved_docs)
-    prompt = f"Question: {query}\nContext:\n{context}\nAnswer:"
-    
-    # Step 3: LLM Output
-    #generated = chat_pipeline(prompt, max_length=50, do_sample=True)[0]["generated_text"]
-    generated = generate_text(
-        prompt,
-        max_length=a,
-        do_sample=b,
-        top_k=c,
-        top_p=d,
-        temperature=e,
-        repetition_penalty=f
-    )
+def batched_rag_pipeline(queries: List[str], k: int = 2) -> List[str]:
+    query_emb = batched_get_embedding(queries)
+    retrieved_docs = batched_retrieve_top_k(query_emb, k)
+    prompt = [
+        f"Question: {query}\nContext:\n{context}\nAnswer:"
+        for query, context in zip(queries, retrieved_docs)
+    ]
+    generated = generate_text_batch(prompt, a, b, c, d, e, f)
     return generated
+
 
 # Define request model
 class QueryRequest(BaseModel):
@@ -118,47 +137,37 @@ class QueryRequest(BaseModel):
     _id: str = None
 
 # Request Queue
-request_queues: List[Queue[QueryRequest]] = [Queue() for _ in range(5)]
+request_queue: Queue[QueryRequest] = Queue()
 responses: Dict[str, Queue[str]] = {}
-MAX_BATCH_SIZE = 5
-MAX_WAITING_TIME = 0.1
+MAX_BATCH_SIZE = 20
+MAX_WAITING_TIME = 2
 
-# Background thread to process requests
-class RequestQueue:
-    queue_index: int
-    model: int
+def process_requests():
+    batch = []
+    start = time.time()
+    while True:
+        if batch:
+            if (len(batch) == MAX_BATCH_SIZE) or ((time.time() - start) > MAX_WAITING_TIME):
+                results = batched_rag_pipeline([req.query for req in batch])
+                for i, req in enumerate(batch):
+                    responses[req._id].put(results[i])
+                batch = []
+                start = time.time()
+            
+        try:
+            # Wait for a request or timeout
+            batch.append(request_queue.get(timeout=MAX_WAITING_TIME))
+        except Exception as e:
+            pass
 
-    def __init__(self, queue_index: int):
-        self.queue_index = queue_index
-        Thread(target=self.process_requests).start()
 
-    def process_requests(self):
-        print(self.queue_index, request_queues[self.queue_index])
-        while True:
-            batch = []
-            for _ in range(MAX_BATCH_SIZE):
-                try:
-                    # Wait for a request or timeout
-                    batch.append(request_queues[self.queue_index].get(timeout=MAX_WAITING_TIME))
-                except Exception as e:
-                    break
-
-            if batch:
-                # Process the batch of requests
-                for payload in batch:
-                    result = rag_pipeline(payload.query, payload.k)
-                    responses.get(payload._id).put(result)
-
-# Initialize request queues
-for i in range(len(request_queues)):
-    RequestQueue(i)
+Thread(target=process_requests).start()
 
 @app.post("/rag")
 def predict(payload: QueryRequest):
-    print("Received request")
     payload._id = str(uuid.uuid4())
     responses[payload._id] = Queue()
-    min(request_queues, key=lambda q: q.qsize()).put(payload)
+    request_queue.put(payload)
     response = responses[payload._id].get()
     del responses[payload._id]
     return response

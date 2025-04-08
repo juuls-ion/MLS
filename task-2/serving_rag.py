@@ -1,39 +1,26 @@
 import torch
 import numpy as np
-from transformers import AutoTokenizer, AutoModel, pipeline
+from transformers import AutoTokenizer, AutoModel, pipeline, AutoModelForCausalLM
 from fastapi import FastAPI
 import uvicorn
 from pydantic import BaseModel
+import re
 
-app = FastAPI()
-
-# Example documents in memory
+#-----Preamble-----
 documents = [
     "Cats are small furry carnivores that are often kept as pets.",
     "Dogs are domesticated mammals, not natural wild animals.",
     "Hummingbirds can hover in mid-air by rapidly flapping their wings."
 ]
 
-# 1. Load embedding model
+#-----Embeddings-----
+
+# Load embedding model, tokenizer
 EMBED_MODEL_NAME = "intfloat/multilingual-e5-large-instruct"
 embed_tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_NAME)
 embed_model = AutoModel.from_pretrained(EMBED_MODEL_NAME)
 
-# Basic Chat LLM
-chat_pipeline = pipeline("text-generation", model="Qwen/Qwen2.5-1.5B-Instruct")
-
-
-## Hints:
-
-### Step 3.1:
-# 1. Initialize a request queue
-# 2. Initialize a background thread to process the request (via calling the rag_pipeline function)
-# 3. Modify the predict function to put the request in the queue, instead of processing it immediately
-
-### Step 3.2:
-# 1. Take up to MAX_BATCH_SIZE requests from the queue or wait until MAX_WAITING_TIME
-# 2. Process the batched requests
-
+# Generate embeddings using embedding model
 def get_embedding(text: str) -> np.ndarray:
     """Compute a simple average-pool embedding."""
     inputs = embed_tokenizer(text, return_tensors="pt", truncation=True)
@@ -44,12 +31,56 @@ def get_embedding(text: str) -> np.ndarray:
 # Precompute document embeddings
 doc_embeddings = np.vstack([get_embedding(doc) for doc in documents])
 
-### You may want to use your own top-k retrieval method (task 1)
+# Find top-k embeddings
+# We can use our own method from task 1
 def retrieve_top_k(query_emb: np.ndarray, k: int = 2) -> list:
     """Retrieve top-k docs via dot-product similarity."""
     sims = doc_embeddings @ query_emb.T
     top_k_indices = np.argsort(sims.ravel())[::-1][:k]
     return [documents[i] for i in top_k_indices]
+
+
+#-----LLM-----
+#chat_pipeline = pipeline("text-generation", model="facebook/opt-125m")
+
+# Qwen model: "Qwen/Qwen2.5-1.5B-Instruct"
+MODEL_NAME = "facebook/opt-125m"
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+def generate_text(prompt,
+                  max_length,
+                  do_sample,
+                  top_k,
+                  top_p,
+                  temperature,
+                  repetition_penalty):
+    inputs = tokenizer(prompt, return_tensors="pt")
+
+    # When using GPU, move inputs to CUDA:
+    #inputs = {k: v.to("cuda") for k, v in inputs.items()}
+
+    # Generate output using LLM
+    with torch.no_grad():
+        output_ids = model.generate(
+            inputs["input_ids"],
+            max_length=max_length,
+            do_sample=do_sample,
+            top_k=top_k,
+            top_p=top_p,
+            temperature=temperature,
+            repetition_penalty=repetition_penalty
+        )
+
+    generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+    return generated_text
+
+
+#-----Output Formatting-----
+
+
+#-----RAG Stuff-----
+app = FastAPI()
 
 def rag_pipeline(query: str, k: int = 2) -> str:
     # Step 1: Input embedding
@@ -63,7 +94,16 @@ def rag_pipeline(query: str, k: int = 2) -> str:
     prompt = f"Question: {query}\nContext:\n{context}\nAnswer:"
     
     # Step 3: LLM Output
-    generated = chat_pipeline(prompt, max_length=50, do_sample=True)[0]["generated_text"]
+    #generated = chat_pipeline(prompt, max_length=50, do_sample=True)[0]["generated_text"]
+    generated = generate_text(
+        prompt,
+        max_length=a,
+        do_sample=b,
+        top_k=c,
+        top_p=d,
+        temperature=e,
+        repetition_penalty=f
+    )
     return generated
 
 # Define request model
@@ -74,11 +114,38 @@ class QueryRequest(BaseModel):
 @app.post("/rag")
 def predict(payload: QueryRequest):
     result = rag_pipeline(payload.query, payload.k)
+    formatted = format_rag_output(result)
     
-    return {
-        "query": payload.query,
-        "result": result,
-    }
+    return{result}
+
+
+
+#-----Hints-----
+'''
+### Step 3.1:
+# 1. Initialize a request queue
+# 2. Initialize a background thread to process the request (via calling the rag_pipeline function)
+# 3. Modify the predict function to put the request in the queue, instead of processing it immediately
+
+### Step 3.2:
+# 1. Take up to MAX_BATCH_SIZE requests from the queue or wait until MAX_WAITING_TIME
+# 2. Process the batched requests
+'''
+#-----Parameters-----
+# Max Length
+a = 200
+# do_sample
+b = True
+# top-k
+c = 50
+# top-p
+d = 0.95
+#temperature
+e = 0.7
+# repetition-penalty
+f = 1.2
+
+#-------------------------------------------------
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

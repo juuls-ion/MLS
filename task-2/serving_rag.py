@@ -5,6 +5,11 @@ from fastapi import FastAPI
 import uvicorn
 from pydantic import BaseModel
 import re
+from threading import Thread
+from queue import Queue
+import uuid
+from typing import Dict, List
+import time
 
 #-----Preamble-----
 documents = [
@@ -110,13 +115,53 @@ def rag_pipeline(query: str, k: int = 2) -> str:
 class QueryRequest(BaseModel):
     query: str
     k: int = 2
+    _id: str = None
+
+# Request Queue
+request_queues: List[Queue[QueryRequest]] = [Queue() for _ in range(5)]
+responses: Dict[str, Queue[str]] = {}
+MAX_BATCH_SIZE = 5
+MAX_WAITING_TIME = 0.1
+
+# Background thread to process requests
+class RequestQueue:
+    queue_index: int
+    model: int
+
+    def __init__(self, queue_index: int):
+        self.queue_index = queue_index
+        Thread(target=self.process_requests).start()
+
+    def process_requests(self):
+        print(self.queue_index, request_queues[self.queue_index])
+        while True:
+            batch = []
+            for _ in range(MAX_BATCH_SIZE):
+                try:
+                    # Wait for a request or timeout
+                    batch.append(request_queues[self.queue_index].get(timeout=MAX_WAITING_TIME))
+                except Exception as e:
+                    break
+
+            if batch:
+                # Process the batch of requests
+                for payload in batch:
+                    result = rag_pipeline(payload.query, payload.k)
+                    responses.get(payload._id).put(result)
+
+# Initialize request queues
+for i in range(len(request_queues)):
+    RequestQueue(i)
 
 @app.post("/rag")
 def predict(payload: QueryRequest):
-    result = rag_pipeline(payload.query, payload.k)
-    formatted = format_rag_output(result)
-    
-    return{result}
+    print("Received request")
+    payload._id = str(uuid.uuid4())
+    responses[payload._id] = Queue()
+    min(request_queues, key=lambda q: q.qsize()).put(payload)
+    response = responses[payload._id].get()
+    del responses[payload._id]
+    return response
 
 
 

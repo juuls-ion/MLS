@@ -70,7 +70,7 @@ async def run_load_test(url: str, payload: dict, num_requests: int, concurrency:
         print("  Throughput: N/A (test duration was zero)")
 
     if successful_requests > 0:
-        avg_latency = total_time / successful_requests * concurrency  # Approximation
+        avg_latency = total_time / successful_requests  # Approximation
         print(
             f"  Approx Avg Latency per request (under load): {avg_latency * 1000:.2f} ms"
         )

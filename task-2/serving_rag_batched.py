@@ -245,4 +245,6 @@ if __name__ == "__main__":
         "Mice are",
         "Humming birds are",
     ]
+    now = time.time()
     print(batched_rag_pipeline(prompt, 2))
+    print("Time taken: ", time.time() - now)

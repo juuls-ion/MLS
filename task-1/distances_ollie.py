@@ -1,6 +1,7 @@
 import torch as tch
 import cupy as cp
-import triton as tr
+import triton
+import triton.language as tl
 
 ########
 # CUPY #
@@ -48,30 +49,95 @@ def distance_manhattan_TORCH(X, Y):
 # TRITON #
 ##########
 
+# ---------- Cosine Distance ----------
+@triton.jit
+def cosine_kernel(X_ptr, Y_ptr, out_ptr, N, D, BLOCK_SIZE: tl.constexpr):
+    row = tl.program_id(0)
+    col = tl.program_id(1)
 
-def distance_cosine_TRITON(X, Y, out):
-    row, col = tr.program_id(0), tr.program_id(1)
-    x = X[row, :]
-    y = Y[col, :]
-    out[row, col] = 1 - tr.sum(x * y) / (tr.sqrt(tr.sum(x * x)) * tr.sqrt(tr.sum(y * y)))
+    offs = tl.arange(0, BLOCK_SIZE)
+    x = tl.load(X_ptr + row * D + offs)
+    y = tl.load(Y_ptr + col * D + offs)
+
+    dot = tl.sum(x * y)
+    x_norm = tl.sqrt(tl.sum(x * x))
+    y_norm = tl.sqrt(tl.sum(y * y))
+    cosine_sim = dot / (x_norm * y_norm)
+    tl.store(out_ptr + row * N + col, 1 - cosine_sim)
+
+
+def distance_cosine_TRITON(X, Y):
+    N, D = X.shape
+    out = tch.empty((N, N), device='cuda', dtype=X.dtype)
+    grid = (N, N)
+    cosine_kernel[grid](X_ptr=X, Y_ptr=Y, out_ptr=out, N=N, D=D, BLOCK_SIZE=D)
     return out
 
 
-def distance_l2_TRITON(X, Y, out):
-    row, col = tr.program_id(0), tr.program_id(1)
-    out[row, col] = tr.sum(tr.square(X[row, :] - Y[col, :]))
+# ---------- L2 Distance ----------
+@triton.jit
+def l2_kernel(X_ptr, Y_ptr, out_ptr, N, D, BLOCK_SIZE: tl.constexpr):
+    row = tl.program_id(0)
+    col = tl.program_id(1)
+
+    offs = tl.arange(0, BLOCK_SIZE)
+    x = tl.load(X_ptr + row * D + offs)
+    y = tl.load(Y_ptr + col * D + offs)
+
+    diff = x - y
+    dist = tl.sum(diff * diff)
+    tl.store(out_ptr + row * N + col, dist)
+
+
+def distance_l2_TRITON(X, Y):
+    N, D = X.shape
+    out = tch.empty((N, N), device='cuda', dtype=X.dtype)
+    grid = (N, N)
+    l2_kernel[grid](X_ptr=X, Y_ptr=Y, out_ptr=out, N=N, D=D, BLOCK_SIZE=D)
     return out
 
 
-def distance_dot_TRITON(X, Y, out):
-    row, col = tr.program_id(0), tr.program_id(1)
-    out[row, col] = 1 - tr.sum(X[row, :] * Y[col, :])
+# ---------- Dot Distance ----------
+@triton.jit
+def dot_kernel(X_ptr, Y_ptr, out_ptr, N, D, BLOCK_SIZE: tl.constexpr):
+    row = tl.program_id(0)
+    col = tl.program_id(1)
+
+    offs = tl.arange(0, BLOCK_SIZE)
+    x = tl.load(X_ptr + row * D + offs)
+    y = tl.load(Y_ptr + col * D + offs)
+
+    dot = tl.sum(x * y)
+    tl.store(out_ptr + row * N + col, 1 - dot)
+
+
+def distance_dot_TRITON(X, Y):
+    N, D = X.shape
+    out = tch.empty((N, N), device='cuda', dtype=X.dtype)
+    grid = (N, N)
+    dot_kernel[grid](X_ptr=X, Y_ptr=Y, out_ptr=out, N=N, D=D, BLOCK_SIZE=D)
     return out
 
 
-def distance_manhattan_TRITON(X, Y, out):
-    row, col = tr.program_id(0), tr.program_id(1)
-    out[row, col] = tr.sum(tr.abs(X[row, :] - Y[col, :]))
+# ---------- Manhattan Distance ----------
+@triton.jit
+def manhattan_kernel(X_ptr, Y_ptr, out_ptr, N, D, BLOCK_SIZE: tl.constexpr):
+    row = tl.program_id(0)
+    col = tl.program_id(1)
+
+    offs = tl.arange(0, BLOCK_SIZE)
+    x = tl.load(X_ptr + row * D + offs)
+    y = tl.load(Y_ptr + col * D + offs)
+
+    dist = tl.sum(tl.abs(x - y))
+    tl.store(out_ptr + row * N + col, dist)
+
+
+def distance_manhattan_TRITON(X, Y):
+    N, D = X.shape
+    out = tch.empty((N, N), device='cuda', dtype=X.dtype)
+    grid = (N, N)
+    manhattan_kernel[grid](X_ptr=X, Y_ptr=Y, out_ptr=out, N=N, D=D, BLOCK_SIZE=D)
     return out
 
 
@@ -87,7 +153,7 @@ def generate_vectors(n, d):
     """
     torch_vectors = tch.randn(n, d)
     cupy_vectors = cp.asarray(torch_vectors.numpy())
-    triton_vectors = tr.from_numpy(torch_vectors.numpy())
+    triton_vectors = tl.from_numpy(torch_vectors.numpy())
     return torch_vectors, cupy_vectors, triton_vectors
 
 

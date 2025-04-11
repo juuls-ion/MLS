@@ -149,16 +149,15 @@ def distance_manhattan_TRITON(X, Y):
 def generate_vectors(n, d):
     """
     Generates n random vectors of dimension d.
-    Converts them to cupy, torch, and triton tensors.
+    Converts them to CUDA tensors for PyTorch and CuPy.
+    Triton uses the same PyTorch CUDA tensors.
     """
-    torch_vectors = tch.randn(n, d)
-    cupy_vectors = cp.asarray(torch_vectors.numpy())
-    triton_vectors = tl.from_numpy(torch_vectors.numpy())
-    return torch_vectors, cupy_vectors, triton_vectors
+    torch_vectors = tch.randn(n, d, device="cuda")
+    cupy_vectors = cp.asarray(torch_vectors.cpu().numpy())
+    return torch_vectors, cupy_vectors
 
 
 if __name__ == "__main__":
-    tch_vs, cp_vs, tr_vs = generate_vectors(10, 2)
+    tch_vs, cp_vs = generate_vectors(10, 2)
     print("Torch vectors:\n", tch_vs)
     print("CuPy vectors:\n", cp_vs)
-    print("Triton vectors:\n", tr_vs)

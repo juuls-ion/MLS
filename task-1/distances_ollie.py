@@ -12,19 +12,29 @@ import matplotlib.pyplot as plt
 
 
 def distance_cosine_NUMPY(X, Y):
-    return 1 - (np.dot(X, Y.T) / (np.linalg.norm(X) * np.linalg.norm(Y)))
+    X = X.reshape(1, -1)
+    Y = Y.reshape(Y.shape[0], -1)
+    dot_products = np.dot(Y, X.T).squeeze()
+    X_norm = np.linalg.norm(X)
+    Y_norms = np.linalg.norm(Y, axis=1)
+    cosine_sim = dot_products / (X_norm * Y_norms + 1e-10)
+    return 1 - cosine_sim
 
 
 def distance_l2_NUMPY(X, Y):
-    return np.sum(np.square(X - Y))
+    X = X.reshape(1, -1)
+    return np.linalg.norm(Y - X, axis=1)
 
 
 def distance_dot_NUMPY(X, Y):
-    return 1 - np.dot(X, Y.T)
+    X = X.reshape(1, -1)
+    dot_products = np.dot(Y, X.T).squeeze()
+    return 1 - dot_products
 
 
 def distance_manhattan_NUMPY(X, Y):
-    return np.sum(np.abs(X - Y))
+    X = X.reshape(1, -1)
+    return np.sum(np.abs(Y - X), axis=1)
 
 
 ########
@@ -33,25 +43,34 @@ def distance_manhattan_NUMPY(X, Y):
 
 
 def distance_cosine_CUPY(X, Y):
-    return 1 - (cp.dot(X, Y.T) / (cp.linalg.norm(X) * cp.linalg.norm(Y)))
+    X = X.reshape(1, -1)
+    Y = Y.reshape(Y.shape[0], -1)
+    dot_products = cp.dot(Y, X.T).squeeze()
+    X_norm = cp.linalg.norm(X)
+    Y_norms = cp.linalg.norm(Y, axis=1)
+    cosine_sim = dot_products / (X_norm * Y_norms + 1e-10)
+    return 1 - cosine_sim
 
 
 def distance_l2_CUPY(X, Y):
-    return cp.sum(cp.square(X - Y))
+    X = X.reshape(1, -1)
+    return cp.linalg.norm(Y - X, axis=1)
 
 
 def distance_dot_CUPY(X, Y):
-    return 1 - cp.dot(X, Y.T)
+    X = X.reshape(1, -1)
+    dot_products = cp.dot(Y, X.T).squeeze()
+    return 1 - dot_products
 
 
 def distance_manhattan_CUPY(X, Y):
-    return cp.sum(cp.abs(X - Y))
+    X = X.reshape(1, -1)
+    return cp.sum(cp.abs(Y - X), axis=1)
 
 
 #########
 # TORCH #
 #########
-
 
 """
 def distance_cosine_TORCH(X, Y):
@@ -242,8 +261,10 @@ ax2.plot(np_l2_2_15d, range(len(np_l2_2_15d)), label="np_l2_2_15d")
 ax2.plot(cp_l2_2_15d, range(len(cp_l2_2_15d)), label="cp_l2_2_15d")
 ax2.plot(np_dot_2_15d, range(len(np_dot_2_15d)), label="np_dot_2_15d")
 ax2.plot(cp_dot_2_15d, range(len(cp_dot_2_15d)), label="cp_dot_2_15d")
-ax2.plot(np_manhattan_2_15d, range(len(np_manhattan_2_15d)), label="np_manhattan_2_15d")
-ax2.plot(cp_manhattan_2_15d, range(len(cp_manhattan_2_15d)), label="cp_manhattan_2_15d")
+ax2.plot(np_manhattan_2_15d, range(
+    len(np_manhattan_2_15d)), label="np_manhattan_2_15d")
+ax2.plot(cp_manhattan_2_15d, range(
+    len(cp_manhattan_2_15d)), label="cp_manhattan_2_15d")
 ax2.legend()
 
 plt.savefig(f"distance_functions.png")

@@ -12,29 +12,21 @@ import matplotlib.pyplot as plt
 
 
 def distance_cosine_NUMPY(X, Y):
-    X = X.reshape(1, -1)
-    Y = Y.reshape(Y.shape[0], -1)
-    dot_products = np.dot(Y, X.T).squeeze()
-    X_norm = np.linalg.norm(X)
-    Y_norms = np.linalg.norm(Y, axis=1)
-    cosine_sim = dot_products / (X_norm * Y_norms + 1e-10)
-    return 1 - cosine_sim
+    X = X[None, ...]
+    Y = Y[:,None,:]
+    return 1 - np.dot(Y, X.T).squeeze() / (np.linalg.norm(X) * np.linalg.norm(Y, axis=1) + 1e-10)
 
 
 def distance_l2_NUMPY(X, Y):
-    X = X.reshape(1, -1)
-    return np.linalg.norm(Y - X, axis=1)
+    return np.linalg.norm(Y[:,None,:] - X[None, ...], axis=1)
 
 
 def distance_dot_NUMPY(X, Y):
-    X = X.reshape(1, -1)
-    dot_products = np.dot(Y, X.T).squeeze()
-    return 1 - dot_products
+    return 1 - np.dot(Y[:,None,:], X[None, ...].T).squeeze()
 
 
 def distance_manhattan_NUMPY(X, Y):
-    X = X.reshape(1, -1)
-    return np.sum(np.abs(Y - X), axis=1)
+    return np.sum(np.abs(Y[:,None,:] - X[None, ...]), axis=1)
 
 
 ########
@@ -43,29 +35,21 @@ def distance_manhattan_NUMPY(X, Y):
 
 
 def distance_cosine_CUPY(X, Y):
-    X = X.reshape(1, -1)
-    Y = Y.reshape(Y.shape[0], -1)
-    dot_products = cp.dot(Y, X.T).squeeze()
-    X_norm = cp.linalg.norm(X)
-    Y_norms = cp.linalg.norm(Y, axis=1)
-    cosine_sim = dot_products / (X_norm * Y_norms + 1e-10)
-    return 1 - cosine_sim
+    X = X[None, ...]
+    Y = Y[:,None,:]
+    return 1 - cp.dot(Y, X.T).squeeze() / (cp.linalg.norm(X) * cp.linalg.norm(Y, axis=1) + 1e-10)
 
 
 def distance_l2_CUPY(X, Y):
-    X = X.reshape(1, -1)
-    return cp.linalg.norm(Y - X, axis=1)
+    return cp.linalg.norm(Y[:,None,:] - X[None, ...], axis=1)
 
 
 def distance_dot_CUPY(X, Y):
-    X = X.reshape(1, -1)
-    dot_products = cp.dot(Y, X.T).squeeze()
-    return 1 - dot_products
+    return 1 - cp.dot(Y[:,None,:], X[None, ...].T).squeeze()
 
 
 def distance_manhattan_CUPY(X, Y):
-    X = X.reshape(1, -1)
-    return cp.sum(cp.abs(Y - X), axis=1)
+    return cp.sum(cp.abs(Y[:,None,:] - X[None, ...]), axis=1)
 
 
 #########

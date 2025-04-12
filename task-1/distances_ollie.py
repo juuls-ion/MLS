@@ -49,10 +49,8 @@ def distance_manhattan_CUPY(X, Y):
 # BENCHMARK #
 #############
 
-
-def benchmark_and_plot(vector_size=512, batch_size=10000):
-    print(
-        f"Benchmarking with vector size {vector_size} and batch size {batch_size}\n")
+def benchmark_and_plot(ax, vector_size=512, batch_size=10000):
+    print(f"Benchmarking with vector dimension {vector_size} and batch size {batch_size}\n")
 
     # Generate random test data
     X_np = np.random.rand(vector_size).astype(np.float32)
@@ -97,16 +95,11 @@ def benchmark_and_plot(vector_size=512, batch_size=10000):
     x = np.arange(len(labels))
     width = 0.35
 
-    fig, ax = plt.subplots()
-    bar_np = ax.bar(x - width / 2, [timings_np[k]
-                    for k in labels], width, label='NumPy')
-
-    bar_cp = ax.bar(x + width / 2, [timings_cp[k]
-                                    for k in labels], width, label='CuPy')
+    bar_np = ax.bar(x - width / 2, [timings_np[k] for k in labels], width, label='NumPy')
+    bar_cp = ax.bar(x + width / 2, [timings_cp[k] for k in labels], width, label='CuPy')
 
     ax.set_ylabel('Time (seconds)')
-    ax.set_title(
-        f'Distance Function Timings\nVector size: {vector_size}, Batch size: {batch_size}')
+    ax.set_title(f'Distance Function Timings\nVector dimension: {vector_size}, Batch size: {batch_size}', pad=10)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.legend()
@@ -125,7 +118,18 @@ def benchmark_and_plot(vector_size=512, batch_size=10000):
         autolabel(bar_cp)
 
     plt.tight_layout()
-    plt.show()
 
-benchmark_and_plot(2, 1000)
-benchmark_and_plot(2 ** 15, 1000)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 3))
+log = False
+if log:
+    ax1.set_yscale("log")
+    ax2.set_yscale("log")
+ax1.spines["top"].set_visible(False)
+ax2.spines["top"].set_visible(False)
+ax1.spines["right"].set_visible(False)
+ax2.spines["right"].set_visible(False)
+
+benchmark_and_plot(ax1, 2, 4_000_000)
+benchmark_and_plot(ax2, 2 ** 15, 10_000)
+
+plt.savefig(f"distance_benchmarks{"_log" if log else ""}.png")

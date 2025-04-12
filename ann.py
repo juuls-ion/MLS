@@ -64,8 +64,12 @@ def refine_clusters(p_gpu, current_label_index):
     return new_centroids
 
 
+def euclidean_distance(a, b):
+    return cp.linalg.norm(a - b, axis=-1)
+
+
 #@cp.fuse('knn')
-def knn(q_cpu, p_cpu, k, distance_fn, batch_size=10_000_00):
+def knn(q_cpu, p_cpu, k, distance_fn=euclidean_distance, batch_size=10_000_00):
     # Determine the ratio of batch size for queries and points
     n_q = q_cpu.shape[0]
     n_p = p_cpu.shape[0]
@@ -84,10 +88,6 @@ def knn(q_cpu, p_cpu, k, distance_fn, batch_size=10_000_00):
         indices[start_idx:end_idx] = cp.asnumpy(batch_indices)
         distances[start_idx:end_idx] = cp.asnumpy(batch_distances)
     return indices, distances
-
-
-def euclidean_distance(a, b):
-    return cp.linalg.norm(a - b, axis=-1)
 
 def initialize_centers(data, k):
     idx = np.random.choice(len(data), size=k, replace=False)

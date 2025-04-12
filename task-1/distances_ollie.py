@@ -183,7 +183,8 @@ def distance_manhattan_TRITON(X, Y):
     N, D = X.shape
     out = tch.empty((N, N), device='cuda', dtype=X.dtype)
     grid = (N, N)
-    manhattan_kernel[grid](X_ptr=X, Y_ptr=Y, out_ptr=out, N=N, D=D, BLOCK_SIZE=D)
+    manhattan_kernel[grid](X_ptr=X, Y_ptr=Y, out_ptr=out,
+                           N=N, D=D, BLOCK_SIZE=D)
     return out
 """
 
@@ -192,7 +193,7 @@ def distance_manhattan_TRITON(X, Y):
 # TESTING #
 ###########
 
-
+"""
 def test_function(fn, d, c):
     times = []
 
@@ -261,10 +262,91 @@ ax2.plot(np_l2_2_15d, range(len(np_l2_2_15d)), label="np_l2_2_15d")
 ax2.plot(cp_l2_2_15d, range(len(cp_l2_2_15d)), label="cp_l2_2_15d")
 ax2.plot(np_dot_2_15d, range(len(np_dot_2_15d)), label="np_dot_2_15d")
 ax2.plot(cp_dot_2_15d, range(len(cp_dot_2_15d)), label="cp_dot_2_15d")
-ax2.plot(np_manhattan_2_15d, range(
-    len(np_manhattan_2_15d)), label="np_manhattan_2_15d")
-ax2.plot(cp_manhattan_2_15d, range(
-    len(cp_manhattan_2_15d)), label="cp_manhattan_2_15d")
+ax2.plot(np_manhattan_2_15d, range(len(np_manhattan_2_15d)), label="np_manhattan_2_15d")
+ax2.plot(cp_manhattan_2_15d, range(len(cp_manhattan_2_15d)), label="cp_manhattan_2_15d")
 ax2.legend()
 
 plt.savefig(f"distance_functions.png")
+"""
+
+#############
+# BENCHMARK #
+#############
+
+
+def benchmark_and_plot(vector_size=512, batch_size=10000):
+    print(
+        f"Benchmarking with vector size {vector_size} and batch size {batch_size}\n")
+
+    # Generate random test data
+    X_np = np.random.rand(vector_size).astype(np.float32)
+    Y_np = np.random.rand(batch_size, vector_size).astype(np.float32)
+
+    X_cp = cp.asarray(X_np)
+    Y_cp = cp.asarray(Y_np)
+
+    # Function sets
+    functions_np = {
+        "Cosine": distance_cosine_NUMPY,
+        "L2": distance_l2_NUMPY,
+        "Dot": distance_dot_NUMPY,
+        "Manhattan": distance_manhattan_NUMPY,
+    }
+
+    functions_cp = {
+        "Cosine": distance_cosine_CUPY,
+        "L2": distance_l2_CUPY,
+        "Dot": distance_dot_CUPY,
+        "Manhattan": distance_manhattan_CUPY,
+    }
+
+    timings_np = {}
+    for name, func in functions_np.items():
+        start = time.perf_counter()
+        _ = func(X_np, Y_np)
+        end = time.perf_counter()
+        timings_np[name] = end - start
+
+    timings_cp = {}
+    cp.cuda.Device(0).synchronize()
+    for name, func in functions_cp.items():
+        start = time.perf_counter()
+        _ = func(X_cp, Y_cp)
+        cp.cuda.Device(0).synchronize()
+        end = time.perf_counter()
+        timings_cp[name] = end - start
+
+    # Plotting
+    labels = list(timings_np.keys())
+    x = np.arange(len(labels))
+    width = 0.35
+
+    fig, ax = plt.subplots()
+    bar_np = ax.bar(x - width / 2, [timings_np[k]
+                    for k in labels], width, label='NumPy')
+
+    bar_cp = ax.bar(x + width / 2, [timings_cp[k]
+                                    for k in labels], width, label='CuPy')
+
+    ax.set_ylabel('Time (seconds)')
+    ax.set_title(
+        f'Distance Function Timings\nVector size: {vector_size}, Batch size: {batch_size}')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.legend()
+
+    def autolabel(bars):
+        for bar in bars:
+            height = bar.get_height()
+            ax.annotate(f'{height:.3f}',
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3),
+                        textcoords="offset points",
+                        ha='center', va='bottom')
+
+    autolabel(bar_np)
+    if bar_cp:
+        autolabel(bar_cp)
+
+    plt.tight_layout()
+    plt.show()

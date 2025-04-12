@@ -209,37 +209,13 @@ def compare_kmeans(reference, test):
     test_labels = cp.asnumpy(test)
     return rand_score(reference_labels, test_labels)   
 
-def benchmark_ann(N, D, K, Q, distance_fn):
-    points_cpu = np.random.rand(N, D)
-    queries_cpu = np.random.rand(Q, D)
-   
-    start = time.time()
-    indices_knn, _ = knn(queries_cpu, points_cpu, K)
-    cp.cuda.Stream.null.synchronize()  # Sync after GPU work is fully done
-    end = time.time()
-
-    print(f"KNN took {end - start:.2f} seconds.")
-  
-
-    cluster_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256]
-    recall_score = []
-    time_taken = []
-    for c in cluster_sizes:
-        start = time.time()
-        indices_ann = ann(points_cpu, queries_cpu, K, c, distance_fn)
-        cp.cuda.Stream.null.synchronize()  # Sync after GPU work is fully done
-        end = time.time()
-        recall_score.append(calculate_recall(indices_ann, indices_knn, K)) 
-        time_taken.append(end - start)
-
+def benchmark_ann(N, Ds, K, Q, distance_fn):
     fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 8), sharex=True)
     ax1 = axes[0]
-    ax1.plot(cluster_sizes, time_taken, marker='o', linestyle='-', color='tab:blue')
     ax1.set_ylabel('Time Taken (seconds)')
     ax1.set_title('ANN: Execution Time vs. Recall Score')
     ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax2 = axes[1]
-    ax2.plot(cluster_sizes, recall_score, marker='s', linestyle='-', color='tab:red')
     ax2.set_xlabel('Execution Time')
     ax2.set_ylabel('Recall Score')
     # ax2.set_ylim(0, 1.05) # Optional: Set limits if Rand Index is always 0-1
@@ -247,41 +223,49 @@ def benchmark_ann(N, D, K, Q, distance_fn):
     ax2.grid(True, linestyle='--', linewidth=0.5)
     ax2.set_xscale('log')
     # Add overall title
-    fig.suptitle(f'Mini-Batch K-Means Benchmark (N={N}, D={D}, iter={10})', fontsize=14)
+    fig.suptitle(f'Mini-Batch K-Means Benchmark (N={N}, Ds=[{",".join(map(str, Ds))}], iter={10})', fontsize=14)
     # Adjust layout to prevent overlapping titles/labels
     fig.tight_layout(rect=[0, 0.03, 1, 0.96]) # Adjust rect to make space for suptitle
-    # Show the plot
-    plt.savefig(f"benchmark_ann_{N}_{D}.png")
 
-def benchmark_kmeans(N, D, C):
-    from sklearn.cluster import KMeans
-    # Compare KMeans with KMeansMiniBatch speed and randindex score
-    points_cpu = np.random.rand(N, D)
-    # reference_centroids, reference_labels = k_means(points_cpu, C, max_iter=100)
-    reference_kmeans = KMeans(n_clusters=C, n_init=10, max_iter=100)
-    reference_kmeans.fit(points_cpu)
-    reference_centroids = reference_kmeans.cluster_centers_
-    reference_labels = reference_kmeans.labels_
-    
-    batch_size = [10, 100, 1000, 10_000, 100_000, 1_000_000]
-    time_taken = []
-    rand_index = []
-    for b in tqdm(batch_size):
+    for D in Ds:
+        points_cpu = np.random.rand(N, D)
+        queries_cpu = np.random.rand(Q, D)
+   
         start = time.time()
-        centroids, labels = k_means_mini_batch(points_cpu, C, iterations=10, batch_size=b)
+        indices_knn, _ = knn(queries_cpu, points_cpu, K)
         cp.cuda.Stream.null.synchronize()  # Sync after GPU work is fully done
         end = time.time()
-        time_taken.append(end - start)
-        rand_index.append(compare_kmeans(reference_labels, labels))
+
+        print(f"KNN took {end - start:.2f} seconds.")
+  
+        cluster_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+        recall_score = []
+        time_taken = []
+        for c in cluster_sizes:
+            start = time.time()
+            indices_ann = ann(points_cpu, queries_cpu, K, c, distance_fn)
+            cp.cuda.Stream.null.synchronize()  # Sync after GPU work is fully done
+            end = time.time()
+            recall_score.append(calculate_recall(indices_ann, indices_knn, K)) 
+            time_taken.append(end - start)
+
+        ax1.plot(cluster_sizes, time_taken, marker='o', linestyle='-', label=f'D={D}')
+        ax2.plot(cluster_sizes, recall_score, marker='s', linestyle='-', label=f'D={D}')
+    
+    # Show the plot
+    ax1.legend()
+    ax2.legend()
+    plt.savefig(f"benchmark_ann_{N}_{"-".join(map(str, Ds))}.png")
+
+def benchmark_kmeans(N, Ds, C):
+    from sklearn.cluster import KMeans
 
     fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 8), sharex=True)
     ax1 = axes[0]
-    ax1.plot(batch_size, time_taken, marker='o', linestyle='-', color='tab:blue')
     ax1.set_ylabel('Time Taken (seconds)')
     ax1.set_title('Mini-Batch K-Means: Execution Time vs. Batch Size')
     ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax2 = axes[1]
-    ax2.plot(batch_size, rand_index, marker='s', linestyle='-', color='tab:red')
     ax2.set_xlabel('Batch Size')
     ax2.set_ylabel('Rand Index (vs Reference)')
     # ax2.set_ylim(0, 1.05) # Optional: Set limits if Rand Index is always 0-1
@@ -289,12 +273,38 @@ def benchmark_kmeans(N, D, C):
     ax2.grid(True, linestyle='--', linewidth=0.5)
     ax2.set_xscale('log')
     # Add overall title
-    fig.suptitle(f'Mini-Batch K-Means Benchmark (N={N}, D={D}, C={C}, iter={10})', fontsize=14)
+    fig.suptitle(f'Mini-Batch K-Means Benchmark (N={N}, Ds=[{",".join(map(str, Ds))}], C={C}, iter={10})', fontsize=14)
     # Adjust layout to prevent overlapping titles/labels
     fig.tight_layout(rect=[0, 0.03, 1, 0.96]) # Adjust rect to make space for suptitle
+
+    for D in Ds:
+        # Compare KMeans with KMeansMiniBatch speed and randindex score
+        points_cpu = np.random.rand(N, D)
+        # reference_centroids, reference_labels = k_means(points_cpu, C, max_iter=100)
+        reference_kmeans = KMeans(n_clusters=C, n_init=10, max_iter=100)
+        reference_kmeans.fit(points_cpu)
+        reference_centroids = reference_kmeans.cluster_centers_
+        reference_labels = reference_kmeans.labels_
+    
+        batch_size = [10, 100, 1000, 10_000, 100_000, 1_000_000]
+        time_taken = []
+        rand_index = []
+        for b in tqdm(batch_size):
+            start = time.time()
+            centroids, labels = k_means_mini_batch(points_cpu, C, iterations=10, batch_size=b)
+            cp.cuda.Stream.null.synchronize()  # Sync after GPU work is fully done
+            end = time.time()
+            time_taken.append(end - start)
+            rand_index.append(compare_kmeans(reference_labels, labels))
+
+        ax1.plot(batch_size, time_taken, marker='o', linestyle='-', label=f'D={D}')
+        ax2.plot(batch_size, rand_index, marker='s', linestyle='-', label=f'D={D}')
+    
     # Show the plot
-    plt.savefig(f"benchmark_kmeans_{N}_{D}_{C}.png")
+    ax1.legend()
+    ax2.legend()
+    plt.savefig(f"benchmark_kmeans_{N}_{"-".join(map(str, Ds))}_{C}.png")
 
-# benchmark_kmeans(4_000_000, 5, 32)
+benchmark_kmeans(4_000_000, [2 ** i for i in range(7)], 32)
 
-benchmark_ann(4_000_000, 64, 32, 1_0, euclidean_distance)
+# benchmark_ann(4_000_000, [2 ** i for i in range(7)], 32, 1_0, euclidean_distance)

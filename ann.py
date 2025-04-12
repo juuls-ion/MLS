@@ -305,6 +305,6 @@ def benchmark_kmeans(N, Ds, C):
     ax2.legend()
     plt.savefig(f"benchmark_kmeans_{N}_{"-".join(map(str, Ds))}_{C}.png")
 
-benchmark_kmeans(4_000_000, [2 ** i for i in range(7)], 32)
+benchmark_kmeans(4_000_000, [2 ** i for i in range(4)], 32)
 
 # benchmark_ann(4_000_000, [2 ** i for i in range(7)], 32, 1_0, euclidean_distance)

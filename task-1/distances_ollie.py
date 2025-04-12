@@ -3,26 +3,28 @@
 # import triton.language as tl
 import cupy as cp
 import numpy as np
+import time
+import matplotlib.pyplot as plt
 
 #########
 # NUMPY #
 #########
 
 
-def distance_cosine_numpy(X, Y):
-    return 1 - (np.dot(X, Y.T) / (np.linalg.norm(X, axis=1, keepdims=True) * np.linalg.norm(Y, axis=1, keepdims=True)))
+def distance_cosine_NUMPY(X, Y):
+    return 1 - (np.dot(X, Y.T) / (np.linalg.norm(X) * np.linalg.norm(Y)))
 
 
-def distance_l2_numpy(X, Y):
-    return np.sum(np.square(X[:, None, :] - Y[None, :, :]), axis=-1)
+def distance_l2_NUMPY(X, Y):
+    return np.sum(np.square(X - Y))
 
 
-def distance_dot_numpy(X, Y):
+def distance_dot_NUMPY(X, Y):
     return 1 - np.dot(X, Y.T)
 
 
-def distance_manhattan_numpy(X, Y):
-    return np.sum(np.abs(X[:, None, :] - Y[None, :, :]), axis=-1)
+def distance_manhattan_NUMPY(X, Y):
+    return np.sum(np.abs(X - Y))
 
 
 ########
@@ -31,11 +33,11 @@ def distance_manhattan_numpy(X, Y):
 
 
 def distance_cosine_CUPY(X, Y):
-    return 1 - (cp.dot(X, Y.T) / (cp.linalg.norm(X, axis=1, keepdims=True) * cp.linalg.norm(Y, axis=1, keepdims=True)))
+    return 1 - (cp.dot(X, Y.T) / (cp.linalg.norm(X) * cp.linalg.norm(Y)))
 
 
 def distance_l2_CUPY(X, Y):
-    return cp.sum(cp.square(X[:, None, :] - Y[None, :, :]), axis=-1)
+    return cp.sum(cp.square(X - Y))
 
 
 def distance_dot_CUPY(X, Y):
@@ -43,7 +45,7 @@ def distance_dot_CUPY(X, Y):
 
 
 def distance_manhattan_CUPY(X, Y):
-    return cp.sum(cp.abs(X[:, None, :] - Y[None, :, :]), axis=-1)
+    return cp.sum(cp.abs(X - Y))
 
 
 #########
@@ -172,37 +174,76 @@ def distance_manhattan_TRITON(X, Y):
 ###########
 
 
-def generate_random_vectors(num_vectors, vector_size):
-    return np.random.rand(num_vectors, vector_size).astype(np.float32)
+def test_function(fn, d, c):
+    times = []
 
+    lib = fn.__name__.split("_")[2]
+    func = fn.__name__.split("_")[1]
+    print(f"{lib}: {func}")
 
-def test_distance_functions(xs, ys):
+    xs = np.random.rand(c, d)
+    ys = np.random.rand(c, d)
+    if lib == "CUPY":
+        xs = cp.array(xs)
+        ys = cp.array(ys)
+
+    start = time.time()
     for x, y in zip(xs, ys):
-        # Run the NumPy functions
-        x = np.array(x)
-        y = np.array(y)
-        print(f"Cosine Distance (NumPy): {distance_cosine_numpy(x, y)}")
-        print(f"L2 Distance (NumPy): {distance_l2_numpy(x, y)}")
-        print(f"Dot Distance (NumPy): {distance_dot_numpy(x, y)}")
-        print(f"Manhattan Distance (NumPy): {distance_manhattan_numpy(x, y)}")
+        fn(x, y)
+        times.append(time.time() - start)
 
-        # Run the CuPy functions
-        x_cupy = cp.array(x)
-        y_cupy = cp.array(y)
-        print(
-            f"Cosine Distance (CuPy): {distance_cosine_CUPY(x_cupy, y_cupy)}")
-        print(f"L2 Distance (CuPy): {distance_l2_CUPY(x_cupy, y_cupy)}")
-        print(f"Dot Distance (CuPy): {distance_dot_CUPY(x_cupy, y_cupy)}")
-        print(
-            f"Manhattan Distance (CuPy): {distance_manhattan_CUPY(x_cupy, y_cupy)}")
+    return times
 
 
 # 2D vectors
-random_vectors_x_1 = generate_random_vectors(10, 2)
-random_vectors_y_1 = generate_random_vectors(10, 2)
-test_distance_functions(random_vectors_x_1, random_vectors_y_1)
+print("2D Vectors")
+np_cosine_2d = test_function(distance_cosine_NUMPY, 2, 1_000)
+cp_cosine_2d = test_function(distance_cosine_CUPY, 2, 1_000)
+np_l2_2d = test_function(distance_l2_NUMPY, 2, 1_000)
+cp_l2_2d = test_function(distance_l2_CUPY, 2, 1_000)
+np_dot_2d = test_function(distance_dot_NUMPY, 2, 1_000)
+cp_dot_2d = test_function(distance_dot_CUPY, 2, 1_000)
+np_manhattan_2d = test_function(distance_manhattan_NUMPY, 2, 1_000)
+cp_manhattan_2d = test_function(distance_manhattan_CUPY, 2, 1_000)
 
 # 2^15D vectors
-random_vectors_x_2 = generate_random_vectors(10, 2 ** 15)
-random_vectors_y_2 = generate_random_vectors(10, 2 ** 15)
-test_distance_functions(random_vectors_x_2, random_vectors_y_2)
+print("2^15D Vectors")
+np_cosine_2_15d = test_function(distance_cosine_NUMPY, 2 ** 15, 1_000)
+cp_cosine_2_15d = test_function(distance_cosine_CUPY, 2 ** 15, 1_000)
+np_l2_2_15d = test_function(distance_l2_NUMPY, 2 ** 15, 1_000)
+cp_l2_2_15d = test_function(distance_l2_CUPY, 2 ** 15, 1_000)
+np_dot_2_15d = test_function(distance_dot_NUMPY, 2 ** 15, 1_000)
+cp_dot_2_15d = test_function(distance_dot_CUPY, 2 ** 15, 1_000)
+np_manhattan_2_15d = test_function(distance_manhattan_NUMPY, 2 ** 15, 1_000)
+cp_manhattan_2_15d = test_function(distance_manhattan_CUPY, 2 ** 15, 1_000)
+
+# Plot graph
+fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 8), sharex=True)
+
+ax1 = axes[0]
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("2D Calculations")
+ax1.plot(np_cosine_2d, range(len(np_cosine_2d)), label="np_cosine_2d")
+ax1.plot(cp_cosine_2d, range(len(cp_cosine_2d)), label="cp_cosine_2d")
+ax1.plot(np_l2_2d, range(len(np_l2_2d)), label="np_l2_2d")
+ax1.plot(cp_l2_2d, range(len(cp_l2_2d)), label="cp_l2_2d")
+ax1.plot(np_dot_2d, range(len(np_dot_2d)), label="np_dot_2d")
+ax1.plot(cp_dot_2d, range(len(cp_dot_2d)), label="cp_dot_2d")
+ax1.plot(np_manhattan_2d, range(len(np_manhattan_2d)), label="np_manhattan_2d")
+ax1.plot(cp_manhattan_2d, range(len(cp_manhattan_2d)), label="cp_manhattan_2d")
+ax1.legend()
+
+ax2 = axes[1]
+ax2.set_xlabel("Time (s)")
+ax2.set_ylabel("2^15D Calculations")
+ax2.plot(np_cosine_2_15d, range(len(np_cosine_2_15d)), label="np_cosine_2_15d")
+ax2.plot(cp_cosine_2_15d, range(len(cp_cosine_2_15d)), label="cp_cosine_2_15d")
+ax2.plot(np_l2_2_15d, range(len(np_l2_2_15d)), label="np_l2_2_15d")
+ax2.plot(cp_l2_2_15d, range(len(cp_l2_2_15d)), label="cp_l2_2_15d")
+ax2.plot(np_dot_2_15d, range(len(np_dot_2_15d)), label="np_dot_2_15d")
+ax2.plot(cp_dot_2_15d, range(len(cp_dot_2_15d)), label="cp_dot_2_15d")
+ax2.plot(np_manhattan_2_15d, range(len(np_manhattan_2_15d)), label="np_manhattan_2_15d")
+ax2.plot(cp_manhattan_2_15d, range(len(cp_manhattan_2_15d)), label="cp_manhattan_2_15d")
+ax2.legend()
+
+plt.savefig(f"distance_functions.png")

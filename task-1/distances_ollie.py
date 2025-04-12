@@ -1,7 +1,29 @@
-import torch as tch
+# import torch as tch
+# import triton
+# import triton.language as tl
 import cupy as cp
-import triton
-import triton.language as tl
+import numpy as np
+
+#########
+# NUMPY #
+#########
+
+
+def distance_cosine_numpy(X, Y):
+    return 1 - (np.dot(X, Y.T) / (np.linalg.norm(X, axis=1, keepdims=True) * np.linalg.norm(Y, axis=1, keepdims=True)))
+
+
+def distance_l2_numpy(X, Y):
+    return np.sum(np.square(X[:, None, :] - Y[None, :, :]), axis=-1)
+
+
+def distance_dot_numpy(X, Y):
+    return 1 - np.dot(X, Y.T)
+
+
+def distance_manhattan_numpy(X, Y):
+    return np.sum(np.abs(X[:, None, :] - Y[None, :, :]), axis=-1)
+
 
 ########
 # CUPY #
@@ -29,6 +51,7 @@ def distance_manhattan_CUPY(X, Y):
 #########
 
 
+"""
 def distance_cosine_TORCH(X, Y):
     return 1 - (tch.matmul(X, Y.T) / (tch.norm(X, dim=1, keepdim=True) * tch.norm(Y, dim=1, keepdim=True).T))
 
@@ -43,12 +66,14 @@ def distance_dot_TORCH(X, Y):
 
 def distance_manhattan_TORCH(X, Y):
     return tch.sum(tch.abs(X[:, None, :] - Y[None, :, :]), dim=-1)
+    """
 
 
 ##########
 # TRITON #
 ##########
 
+"""
 # ---------- Cosine Distance ----------
 @triton.jit
 def cosine_kernel(X_ptr, Y_ptr, out_ptr, N, D, BLOCK_SIZE: tl.constexpr):
@@ -139,6 +164,7 @@ def distance_manhattan_TRITON(X, Y):
     grid = (N, N)
     manhattan_kernel[grid](X_ptr=X, Y_ptr=Y, out_ptr=out, N=N, D=D, BLOCK_SIZE=D)
     return out
+"""
 
 
 ###########
@@ -146,18 +172,37 @@ def distance_manhattan_TRITON(X, Y):
 ###########
 
 
-def generate_vectors(n, d):
-    """
-    Generates n random vectors of dimension d.
-    Converts them to CUDA tensors for PyTorch and CuPy.
-    Triton uses the same PyTorch CUDA tensors.
-    """
-    torch_vectors = tch.randn(n, d, device="cuda")
-    cupy_vectors = cp.asarray(torch_vectors.cpu().numpy())
-    return torch_vectors, cupy_vectors
+def generate_random_vectors(num_vectors, vector_size):
+    return np.random.rand(num_vectors, vector_size).astype(np.float32)
 
 
-if __name__ == "__main__":
-    tch_vs, cp_vs = generate_vectors(10, 2)
-    print("Torch vectors:\n", tch_vs)
-    print("CuPy vectors:\n", cp_vs)
+def test_distance_functions(xs, ys):
+    for x, y in zip(xs, ys):
+        # Run the NumPy functions
+        x = np.array(x)
+        y = np.array(y)
+        print(f"Cosine Distance (NumPy): {distance_cosine_numpy(x, y)}")
+        print(f"L2 Distance (NumPy): {distance_l2_numpy(x, y)}")
+        print(f"Dot Distance (NumPy): {distance_dot_numpy(x, y)}")
+        print(f"Manhattan Distance (NumPy): {distance_manhattan_numpy(x, y)}")
+
+        # Run the CuPy functions
+        x_cupy = cp.array(x)
+        y_cupy = cp.array(y)
+        print(
+            f"Cosine Distance (CuPy): {distance_cosine_CUPY(x_cupy, y_cupy)}")
+        print(f"L2 Distance (CuPy): {distance_l2_CUPY(x_cupy, y_cupy)}")
+        print(f"Dot Distance (CuPy): {distance_dot_CUPY(x_cupy, y_cupy)}")
+        print(
+            f"Manhattan Distance (CuPy): {distance_manhattan_CUPY(x_cupy, y_cupy)}")
+
+
+# 2D vectors
+random_vectors_x_1 = generate_random_vectors(10, 2)
+random_vectors_y_1 = generate_random_vectors(10, 2)
+test_distance_functions(random_vectors_x_1, random_vectors_y_1)
+
+# 2^15D vectors
+random_vectors_x_2 = generate_random_vectors(10, 2 ** 15)
+random_vectors_y_2 = generate_random_vectors(10, 2 ** 15)
+test_distance_functions(random_vectors_x_2, random_vectors_y_2)

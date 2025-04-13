@@ -210,20 +210,19 @@ def compare_kmeans(reference, test):
     return rand_score(reference_labels, test_labels)   
 
 def benchmark_ann(N, Ds, K, Q, distance_fn):
-    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 8), sharex=True)
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
+    fig.subplots_adjust(wspace=1)
     ax1 = axes[0]
     ax1.set_ylabel('Time Taken (seconds)')
     ax1.set_title('ANN: Execution Time vs. Recall Score')
-    ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax2 = axes[1]
-    ax2.set_xlabel('Execution Time')
+    ax2.set_xlabel('Cluster Size')
     ax2.set_ylabel('Recall Score')
     # ax2.set_ylim(0, 1.05) # Optional: Set limits if Rand Index is always 0-1
     ax2.set_title('Mini-Batch K-Means: Accuracy (Rand Index) vs. Batch Size')
-    ax2.grid(True, linestyle='--', linewidth=0.5)
     ax2.set_xscale('log')
-    # Add overall title
-    fig.suptitle(f'Mini-Batch K-Means Benchmark (N={N}, Ds=[{",".join(map(str, Ds))}], iter={10})', fontsize=14)
+    ax1.set_xscale('log')
+    ax1.set_xlabel('Cluster Size')
     # Adjust layout to prevent overlapping titles/labels
     fig.tight_layout(rect=[0, 0.03, 1, 0.96]) # Adjust rect to make space for suptitle
 
@@ -260,20 +259,19 @@ def benchmark_ann(N, Ds, K, Q, distance_fn):
 def benchmark_kmeans(N, Ds, C):
     from sklearn.cluster import KMeans
 
-    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 8), sharex=True)
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
+    fig.subplots_adjust(wspace=1)
     ax1 = axes[0]
     ax1.set_ylabel('Time Taken (seconds)')
     ax1.set_title('Mini-Batch K-Means: Execution Time vs. Batch Size')
-    ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax2 = axes[1]
     ax2.set_xlabel('Batch Size')
     ax2.set_ylabel('Rand Index (vs Reference)')
     # ax2.set_ylim(0, 1.05) # Optional: Set limits if Rand Index is always 0-1
     ax2.set_title('Mini-Batch K-Means: Accuracy (Rand Index) vs. Batch Size')
-    ax2.grid(True, linestyle='--', linewidth=0.5)
     ax2.set_xscale('log')
-    # Add overall title
-    fig.suptitle(f'Mini-Batch K-Means Benchmark (N={N}, Ds=[{",".join(map(str, Ds))}], C={C}, iter={10})', fontsize=14)
+    ax1.set_xscale('log')
+    ax1.set_xlabel('Batch Size')
     # Adjust layout to prevent overlapping titles/labels
     fig.tight_layout(rect=[0, 0.03, 1, 0.96]) # Adjust rect to make space for suptitle
 
@@ -305,6 +303,5 @@ def benchmark_kmeans(N, Ds, C):
     ax2.legend()
     plt.savefig(f"benchmark_kmeans_{N}_{"-".join(map(str, Ds))}_{C}.png")
 
+benchmark_ann(4_000_000, [2 ** i for i in range(7)], 32, 1_0, euclidean_distance)
 benchmark_kmeans(4_000_000, [2 ** i for i in range(4)], 32)
-
-# benchmark_ann(4_000_000, [2 ** i for i in range(7)], 32, 1_0, euclidean_distance)

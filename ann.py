@@ -84,7 +84,7 @@ def knn(q_cpu, p_cpu, k, distance_fn=euclidean_distance, batch_size=10_000_00):
     for start_idx in tqdm(range(0, n_q, q_batch_size)):
         end_idx = min(start_idx + batch_size, n_q)
         q_gpu = cp.asarray(q_cpu[start_idx:end_idx])
-        batch_distances, batch_indices = overall_knn(q_gpu, p_cpu, k, distance_fn, p_batch_size)
+        batch_distances, batch_indices = overall_knn(q_gpu, p_cpu, k, distance_fn, 1_000_000)
         indices[start_idx:end_idx] = cp.asnumpy(batch_indices)
         distances[start_idx:end_idx] = cp.asnumpy(batch_distances)
     return indices, distances
@@ -93,7 +93,7 @@ def initialize_centers(data, k):
     idx = np.random.choice(len(data), size=k, replace=False)
     return cp.asarray(data[idx])
 
-def assign_labels(data, centers, batch_size=1_000_0):
+def assign_labels(data, centers, batch_size=1_000_00):
     # preallocate labels
     labels = np.empty(data.shape[0])   
     for start_idx in tqdm(range(0, data.shape[0], batch_size)):
@@ -216,13 +216,13 @@ def benchmark_ann(Ns, Ds, K, Q, distance_fn):
     ax1.set_ylabel('Time Taken (seconds)')
     ax1.set_title('ANN: Execution Time vs. Recall Score')
     ax2 = axes[1]
-    ax2.set_xlabel('Cluster Size')
+    ax2.set_xlabel('Number of Clusters')
     ax2.set_ylabel('Recall Score')
     # ax2.set_ylim(0, 1.05) # Optional: Set limits if Rand Index is always 0-1
     ax2.set_title('Mini-Batch K-Means: Accuracy (Rand Index) vs. Batch Size')
     ax2.set_xscale('log')
     ax1.set_xscale('log')
-    ax1.set_xlabel('Cluster Size')
+    ax1.set_xlabel('Number of Clusters')
     # Adjust layout to prevent overlapping titles/labels
     fig.tight_layout(rect=[0, 0.03, 1, 0.96]) # Adjust rect to make space for suptitle
 

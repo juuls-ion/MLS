@@ -209,7 +209,7 @@ def compare_kmeans(reference, test):
     test_labels = cp.asnumpy(test)
     return rand_score(reference_labels, test_labels)   
 
-def benchmark_ann(N, Ds, K, Q, distance_fn):
+def benchmark_ann(Ns, Ds, K, Q, distance_fn):
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
     fig.subplots_adjust(wspace=1)
     ax1 = axes[0]
@@ -226,35 +226,36 @@ def benchmark_ann(N, Ds, K, Q, distance_fn):
     # Adjust layout to prevent overlapping titles/labels
     fig.tight_layout(rect=[0, 0.03, 1, 0.96]) # Adjust rect to make space for suptitle
 
-    for D in Ds:
-        points_cpu = np.random.rand(N, D)
-        queries_cpu = np.random.rand(Q, D)
+    for N in Ns:
+        for D in Ds:
+            points_cpu = np.random.rand(N, D)
+            queries_cpu = np.random.rand(Q, D)
    
-        start = time.time()
-        indices_knn, _ = knn(queries_cpu, points_cpu, K)
-        cp.cuda.Stream.null.synchronize()  # Sync after GPU work is fully done
-        end = time.time()
-
-        print(f"KNN took {end - start:.2f} seconds.")
-  
-        cluster_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256]
-        recall_score = []
-        time_taken = []
-        for c in cluster_sizes:
             start = time.time()
-            indices_ann = ann(points_cpu, queries_cpu, K, c, distance_fn)
+            indices_knn, _ = knn(queries_cpu, points_cpu, K)
             cp.cuda.Stream.null.synchronize()  # Sync after GPU work is fully done
             end = time.time()
-            recall_score.append(calculate_recall(indices_ann, indices_knn, K)) 
-            time_taken.append(end - start)
 
-        ax1.plot(cluster_sizes, time_taken, marker='o', linestyle='-', label=f'D={D}')
-        ax2.plot(cluster_sizes, recall_score, marker='s', linestyle='-', label=f'D={D}')
+            print(f"KNN took {end - start:.2f} seconds.")
+  
+            cluster_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+            recall_score = []
+            time_taken = []
+            for c in cluster_sizes:
+                start = time.time()
+                indices_ann = ann(points_cpu, queries_cpu, K, c, distance_fn)
+                cp.cuda.Stream.null.synchronize()  # Sync after GPU work is fully done
+                end = time.time()
+                recall_score.append(calculate_recall(indices_ann, indices_knn, K)) 
+                time_taken.append(end - start)
+
+            ax1.plot(cluster_sizes, time_taken, marker='o', linestyle='-', label=f'N={N}')
+            ax2.plot(cluster_sizes, recall_score, marker='s', linestyle='-', label=f'N={N}')
     
     # Show the plot
-    ax1.legend()
-    ax2.legend()
-    plt.savefig(f"benchmark_ann_{N}_{"-".join(map(str, Ds))}.png")
+    ax1.legend(fontsize=6)
+    ax2.legend(fontsize=6)
+    plt.savefig(f"benchmark_ann_{"-".join(map(str, Ns))}_{"-".join(map(str, Ds))}.png")
 
 def benchmark_kmeans(N, Ds, C):
     from sklearn.cluster import KMeans
@@ -303,5 +304,6 @@ def benchmark_kmeans(N, Ds, C):
     ax2.legend()
     plt.savefig(f"benchmark_kmeans_{N}_{"-".join(map(str, Ds))}_{C}.png")
 
-benchmark_ann(4_000_000, [2 ** i for i in range(7)], 32, 1_0, euclidean_distance)
-benchmark_kmeans(4_000_000, [2 ** i for i in range(4)], 32)
+# benchmark_kmeans(4_000_000, [2 ** i for i in range(4)], 32)
+# benchmark_ann([4_000_000], [2 ** i for i in range(7)], 32, 10, euclidean_distance)
+benchmark_ann(list(range(4_000, 4_000_000, int((4_000_000 - 4_000) / 10))), [2], 32, 10, euclidean_distance)

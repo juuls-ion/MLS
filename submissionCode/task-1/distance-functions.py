@@ -3,6 +3,7 @@ import cupy as cp
 import time
 import matplotlib.pyplot as plt
 
+
 ###############
 # NUMPY (CPU) #
 ###############
@@ -17,6 +18,7 @@ def distance_cosine_NUMPY(X, Y):
     """
     return 1 - np.dot(Y, X.T).squeeze() / (np.linalg.norm(X) * np.linalg.norm(Y, axis=1) + 1e-10)
 
+
 def distance_l2_NUMPY(X, Y):
     """
     Calculates the Euclidean (l2) distance of X with each row in Y using NumPy.
@@ -27,6 +29,7 @@ def distance_l2_NUMPY(X, Y):
     """
     return np.linalg.norm(Y[:, None, :] - X[None, ...], axis=1)
 
+
 def distance_dot_NUMPY(X, Y):
     """
     Calculates the dot product distance of X with each row in Y using NumPy.
@@ -36,6 +39,7 @@ def distance_dot_NUMPY(X, Y):
     :returns: A matrix of dimension dxn.
     """
     return 1 - np.dot(Y[:, None, :], X[None, ...].T).squeeze()
+
 
 def distance_manhattan_NUMPY(X, Y):
     """
@@ -62,6 +66,7 @@ def distance_cosine_CUPY(X, Y):
     """
     return 1 - cp.dot(Y, X.T).squeeze() / (cp.linalg.norm(X) * cp.linalg.norm(Y, axis=1) + 1e-10)
 
+
 def distance_l2_CUPY(X, Y):
     """
     Calculates the Euclidean (l2) distance of X with each row in Y using CuPy.
@@ -72,6 +77,7 @@ def distance_l2_CUPY(X, Y):
     """
     return cp.linalg.norm(Y[:, None, :] - X[None, ...], axis=1)
 
+
 def distance_dot_CUPY(X, Y):
     """
     Calculates the dot product distance of X with each row in Y using CuPy.
@@ -81,6 +87,7 @@ def distance_dot_CUPY(X, Y):
     :returns: A matrix of dimension dxn.
     """
     return 1 - cp.dot(Y[:, None, :], X[None, ...].T).squeeze()
+
 
 def distance_manhattan_CUPY(X, Y):
     """
@@ -105,7 +112,8 @@ def benchmark_and_plot(ax, vector_size, batch_size):
     :param vector_size: The dimensionality of the vectors to benchmark on.
     :param batch_size: The number of vectors to benchmark against.
     """
-    print(f"Benchmarking with vector dimension {vector_size} and batch size {batch_size}\n")
+    print(
+        f"Benchmarking with vector dimension {vector_size} and batch size {batch_size}\n")
 
     # Generate random test data
     X_np = np.random.rand(vector_size).astype(np.float32)
@@ -152,11 +160,14 @@ def benchmark_and_plot(ax, vector_size, batch_size):
     x = np.arange(len(labels))
     width = 0.35
 
-    bar_np = ax.bar(x - width / 2, [timings_np[k] for k in labels], width, label="NumPy")
-    bar_cp = ax.bar(x + width / 2, [timings_cp[k] for k in labels], width, label="CuPy")
+    bar_np = ax.bar(x - width / 2, [timings_np[k]
+                    for k in labels], width, label="NumPy")
+    bar_cp = ax.bar(x + width / 2, [timings_cp[k]
+                    for k in labels], width, label="CuPy")
 
     ax.set_ylabel("Time (seconds)")
-    ax.set_title(f"Distance Function Timings\nVector dimension: {vector_size}, Batch size: {batch_size}", pad=10)
+    ax.set_title(
+        f"Distance Function Timings\nVector dimension: {vector_size}, Batch size: {batch_size}", pad=10)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.legend()
@@ -177,23 +188,33 @@ def benchmark_and_plot(ax, vector_size, batch_size):
 
     plt.tight_layout()
 
-# Create two plots, one for 2D vectors, one for 2^15D vectors
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 3))
-# Remove lines from top and right of graphs
-ax1.spines["top"].set_visible(False)
-ax2.spines["top"].set_visible(False)
-ax1.spines["right"].set_visible(False)
-ax2.spines["right"].set_visible(False)
 
-# Option for logarithmic or linear scale
-log = False
-if log:
-    ax1.set_yscale("log")
-    ax2.set_yscale("log")
+def generate_graphs(log=False):
+    """
+    Generates the graphs for the distance function benchmarks.
+    :param log: If True, use logarithmic scale for the y-axis.
+    """
+    # Create two plots, one for 2D vectors, one for 2^15D vectors
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 3))
+    # Remove lines from top and right of graphs
+    ax1.spines["top"].set_visible(False)
+    ax2.spines["top"].set_visible(False)
+    ax1.spines["right"].set_visible(False)
+    ax2.spines["right"].set_visible(False)
 
-# Run the benchmarking
-benchmark_and_plot(ax1, 2, 4_000_000)
-benchmark_and_plot(ax2, 2 ** 15, 10_000)
+    # Option for logarithmic or linear scale
+    if log:
+        ax1.set_yscale("log")
+        ax2.set_yscale("log")
 
-# Save the file with the appropriate name
-plt.savefig(f"distance_benchmarks{"_log" if log else ""}.png")
+    # Run the benchmarking
+    benchmark_and_plot(ax1, 2, 4_000_000)
+    benchmark_and_plot(ax2, 2 ** 15, 10_000)
+
+    # Save the file with the appropriate name
+    plt.savefig(f"distance_benchmarks{"_log" if log else ""}.png")
+
+
+if __name__ == "__main__":
+    # Generate the graphs
+    generate_graphs(log=False)

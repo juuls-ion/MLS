@@ -38,9 +38,42 @@ def gpu_stats():
 gpu_utils = []
 
 
-#############################
-# K-MEANS UTILITY FUNCTIONS #
-#############################
+#####################
+# UTILITY FUNCTIONS #
+#####################
+
+def euclidean_distance(a, b):
+    """
+    Computes the Euclidean distance between two matrices.
+    Each row of the first matrix is compared to each row of the second matrix.
+
+    :param a: First matrix.
+    :param b: Second matrix.
+    :returns: Matrix of distances.
+    """
+    return cp.linalg.norm(a - b, axis=-1)
+
+
+def group_by_cluster(points, labels):
+    """
+    Groups points by their cluster labels.
+    This function sorts the points and labels, and then groups them based on the labels.
+    It returns a list of tuples, where each tuple contains the points and their corresponding labels.
+    The points and labels are sorted in ascending order.
+
+    :param points: Points to be grouped.
+    :param labels: Labels corresponding to the points.
+    :returns: List of tuples containing grouped points and labels.
+    """
+    sorted_label_indices = cp.argsort(labels)
+    sorted_labels = labels[sorted_label_indices]
+    sorted_points = points[sorted_label_indices]
+    change_indices = cp.where(cp.diff(sorted_labels) != 0)[0] + 1
+    start_indices = cp.concatenate((cp.array([0]), change_indices)).get()
+    end_indices = cp.concatenate(
+        (change_indices, cp.array([len(labels)]))).get()
+    return [(sorted_points[start:end], sorted_label_indices[start:end]) for start, end in zip(start_indices, end_indices)]
+
 
 def refine_clusters(p_gpu, current_label_index):
     """
@@ -128,7 +161,7 @@ def k_means_mini_batch(data, k, iterations=10, batch_size=2048):
     return centers, labels
 
 
-def k_means(p_cpu, c, distance_fn, max_iter=10):
+def k_means(p_cpu, c, distance_fn=euclidean_distance, max_iter=10):
     """
     Perform K-Means clustering on the given data using a GPU.
     This function initializes c cluster centers and iteratively refines them
@@ -155,43 +188,6 @@ def k_means(p_cpu, c, distance_fn, max_iter=10):
         gpu_utils.append(gpu_stats())
         indices = new_indices
     return centroids, indices
-
-
-#############################
-# KNN/ANN UTILITY FUNCTIONS #
-#############################
-
-def euclidean_distance(a, b):
-    """
-    Computes the Euclidean distance between two matrices.
-    Each row of the first matrix is compared to each row of the second matrix.
-
-    :param a: First matrix.
-    :param b: Second matrix.
-    :returns: Matrix of distances.
-    """
-    return cp.linalg.norm(a - b, axis=-1)
-
-
-def group_by_cluster(points, labels):
-    """
-    Groups points by their cluster labels.
-    This function sorts the points and labels, and then groups them based on the labels.
-    It returns a list of tuples, where each tuple contains the points and their corresponding labels.
-    The points and labels are sorted in ascending order.
-
-    :param points: Points to be grouped.
-    :param labels: Labels corresponding to the points.
-    :returns: List of tuples containing grouped points and labels.
-    """
-    sorted_label_indices = cp.argsort(labels)
-    sorted_labels = labels[sorted_label_indices]
-    sorted_points = points[sorted_label_indices]
-    change_indices = cp.where(cp.diff(sorted_labels) != 0)[0] + 1
-    start_indices = cp.concatenate((cp.array([0]), change_indices)).get()
-    end_indices = cp.concatenate(
-        (change_indices, cp.array([len(labels)]))).get()
-    return [(sorted_points[start:end], sorted_label_indices[start:end]) for start, end in zip(start_indices, end_indices)]
 
 
 ###########
@@ -277,7 +273,7 @@ def knn(q_cpu, p_cpu, k, distance_fn=euclidean_distance, batch_size=1_000_000):
     return indices, distances
 
 
-def ann(p_cpu, q_cpu, k, c, distance_fn):
+def ann(p_cpu, q_cpu, k, c, distance_fn=euclidean_distance):
     """
     Approximate Nearest Neighbor search using K-Means clustering.
     This function first clusters the points in p_cpu into c clusters using K-Means.

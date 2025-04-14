@@ -136,8 +136,8 @@ if __name__ == "__main__":
                         help="Total number of requests to send")
     parser.add_argument("--rate", type=float, default=1,
                         help="Target requests per second (0 = no limit)")
-    parser.add_argument("--target", type=str, choices=["batched", "naive", "both"],
-                        default="both", help="Which server to test: 'batched', 'naive', or 'both'")
+    parser.add_argument("--target", type=str, choices=["batched", "naive"],
+                        default="batched", help="Which server to test: 'batched' or 'naive'")
 
     args = parser.parse_args()
     asyncio.run(benchmark_async(num_requests=args.requests,

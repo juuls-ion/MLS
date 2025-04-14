@@ -1,101 +1,15 @@
-# MLS Workflow Tips
+# How to replicate results
 
-**First, ssh into MLP head node (from Dice):**
+Install all appropriate libraries (i.e. `CuPy`, `NumPy`, `time`, `matplotlib`, etc.)
 
-	ssh mlp1
+## Task 1
+- The functions in `task-1/task.py` call the functions defined in `task-1/distances.py` and `task-1/ann.py`.
+- Run `python task-1/distances.py` to compare performance of CuPy and NumPy implementations of the four distance functions.
+- Run `python task-1/ann.py` to benchmark ANN and K-Means functions.
 
-You now have access to a filespace on the MLP node that is unique to your UID.
-
-Set up conda on MLS head node
-
-	opt/conda/bin/conda init bash
- 	source .bashrc
-
-Set up the environment:
-
-	conda create --name env
- 
-Activate the environment:
-
-	conda activate env
- 
-Install CUDA:
-
-	conda install cuda
- 
-Install CuPy:
-
- 	conda install -c conda-forge cupy
-
-**To run an interactive job:**
-Connect to node:
-
-	srun --gres=gpu:1 --pty bash
-
-Wait until you see a terminal message like 
-> “... has been allocated resources”.
-
-You are now connected to a node with access to a GPU. This node lets you run interactive jobs, which are short jobs that let you test GPU code (e.g. for debugging).
-You can now run GPU-friendly python files for example, using
-
-	python3 ~/path/to/file
-
-## To run a job
-
-First, write a python script that does whatever you want to do.
-If you want to save an output, ideally do it in the script using cupy.savetxt(), etc.
-
-Then, write a shell script that looks this:
-
-	#!/bin/bash
-	python3 ~/path/to/file
-
-Then, run:
-
-	sbatch --gres=gpu:1 script.sh
-
-
-and the output (from the python file) will be saved to the directory you called sbatch from.
-
-## Useful Commands
-
-You can specify GPUs:
-
-	srun --gres=gpu:titan_x:1 --pty bash
-	sbatch --gres=gpu:titan_x:1 test.sh
- 
-to use Titan X GPUs. We are allowed to request a maximum of 8 GTX 1060 GPUs, 4 Titan X GPUs, 1 Titan X Pascal GPU, or 2
-A6000 GPUs at a time.
-
-**Check all available GPU types:**
-	
- 	scontrol show node | grep gpu
-
-**Check current SLURM job status:**
-
-	squeue
-
- **Cancel a job:** 
- 
- 	scancel <job_id>
-
-  For more info, check out
-  https://computing.help.inf.ed.ac.uk/teaching-cluster
-
-  ## Important Notes
-
-Only install your environment and write your code on the head node. Actions such as Git operations and
-similar tasks should also be performed on the head node, as they will not work on the compute nodes.
-
-Only run your code on the compute nodes using srun or sbatch, as the head node has limited computing
-resources and does not have GPUs. Running torch.cuda.is_available() on the head node will return
-False.
-
-Computing Support Team: https://computing.help.inf.ed.ac.uk/
-
-## PyTorch Demo
-
-They gave us a demo workthrough in rescources/1-pytorch-demo. Its worth a look.
-
-![ScreenShot](/images/pytorch_demo.jpg)
-
+## Task 2
+- `task-2/ann.py` is identical to `task-1/ann.py`.
+- Run `python task-2/serving_rag.py` to start the RAG Server. You can then run `python task-2/load_tester.py` to run the load tester. You can pass three arguments when running this file:
+	- `--requests` - to specify the total number of requests to send. Defaults to `100`.
+	- `--rate` - to specify how many requests to send per second. Defaults to `1`. `0` is no limit.
+	- `--target=[batched|naive]` - to specify which server to run. Defaults to `batched`.
